@@ -1,7 +1,10 @@
 ---
 galaxy_info:
   author: S. Mannem
-  description: CTO
+  description: |
+    Keepalivd is a tool to manage a VIP in a private datacenter setup.
+    This role installs and configured keepalived so that a VIP is allways available on one of the PgVillage machines.
+
   company: Nibble-IT
 
   # If the issue tracker for your role is not on github, uncomment the
