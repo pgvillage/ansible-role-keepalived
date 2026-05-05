@@ -1,5 +1,7 @@
 ---
 galaxy_info:
+  namespace: pgvillage
+  role_name: keepalived
   author: S. Mannem
   description: |
     Keepalivd is a tool to manage a VIP in a private datacenter setup.
