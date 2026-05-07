@@ -1,5 +1,5 @@
 global_defs {
-  router_id {{ ansible_fqdn }}
+  router_id {{ ansible_facts.fqdn }}
   script_user root
   enable_script_security
 }
@@ -11,14 +11,14 @@ vrrp_script check_haproxy {
 }
 
 vrrp_instance balancer {
-  state {% if "1" in ansible_fqdn %}
+  state {% if "1" in ansible_facts.fqdn %}
 MASTER
 {% else %}
 BACKUP
 {% endif %}
   interface ens192
   virtual_router_id {{ keepalived_virtual_router_id }}
-  priority {% if "1" in ansible_fqdn %}
+  priority {% if "1" in ansible_facts.fqdn %}
 100
 {% else %}
 50
