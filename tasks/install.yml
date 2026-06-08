@@ -13,13 +13,11 @@
 - name: Install keepalived rpm files
   ansible.builtin.package:
     name: "/tmp/{{ item }}"
-    disable_gpg_check: true
     state: "{{ keepalived_package_state }}"
   loop: "{{ keepalived_local_packages }}"
 
 - name: Install keepalived rpm files
   ansible.builtin.package:
     name: "{{ item }}"
-    disable_gpg_check: true
     state: "{{ keepalived_package_state }}"
   loop: "{{ keepalived_packages }}"
