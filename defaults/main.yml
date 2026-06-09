@@ -5,6 +5,13 @@ keepalived_local_packages: []
 keepalived_packages:
   - keepalived
 
+keepalived_cluster_password: "{{ keepalived_vip_definition | md5 | truncate (8, True, '', 0) }}"
+keepalived_interface: "eth0"
+keepalived_vip: 192.168.0.100
+keepalived_vip_cidr: 24
+keepalived_label: vip
+keepalived_vip_definition: "{{ keepalived_vip }}/{{ keepalived_vip_cidr }} dev {{ keepalived_interface }} label {{ keepalived_interface }}:{{ keepalived_label }}"
+
 keepalived_virtual_cluster_name: "keepalived"
 keepalived_virtual_router_id: "{{ keepalived_virtual_cluster_name | hashnum(256) }}"
 
