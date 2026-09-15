@@ -16,7 +16,7 @@ MASTER
 {% else %}
 BACKUP
 {% endif %}
-  interface ens192
+  interface {{ keepalived_interface }}
   virtual_router_id {{ keepalived_virtual_router_id }}
   priority {% if "1" in ansible_facts.fqdn %}
 100
@@ -24,13 +24,13 @@ BACKUP
 50
 {% endif %}
   virtual_ipaddress {
-    {{ keepalived_internal_vip_cidr }}
+    {{ keepalived_vip_definition }}
   }
   track_script {
     check_haproxy
   }
   authentication {
     auth_type PASS
-    auth_pass {{ vault_keepalived_password }} 
+    auth_pass {{ keepalived_cluster_password }} 
   }
 }

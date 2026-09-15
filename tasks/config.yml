@@ -23,7 +23,7 @@
     mode: "0640"
   #  validate: keepalived --config-test --use-file=%s
   notify:
-    - restart keepalived
+    - Restart keepalived
 
 - name: Start keepalived
   ansible.builtin.service:
