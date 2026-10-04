@@ -1,34 +1,72 @@
 ---
 # defaults file for keepalived
+
+# --- Installation ---
+
+# State passed to the package module for all keepalived packages
+# (e.g. `present`, `latest`, `absent`).
 keepalived_package_state: present
+# List of local package files (in the role/playbook `files` search path) that
+# are copied to `/tmp/` on the target and installed from there.
 keepalived_local_packages: []
+# List of packages to install from the configured package repositories.
 keepalived_packages:
   - keepalived
 
+# --- Virtual IP / VRRP instance ---
+
+# Password used by VRRP peers to authenticate each other (auth_type PASS).
+# Defaults to the first 8 characters of the md5 hash of the VIP definition, so
+# all nodes sharing the same VIP automatically derive the same password.
 keepalived_cluster_password: "{{ keepalived_vip_definition | md5 | truncate(8, True, '', 0) }}"
+# Network interface VRRP runs on and on which the VIP is configured.
 keepalived_interface: "eth0"
+# The virtual IP address managed by keepalived.
 keepalived_vip: 192.168.0.100
+# Prefix length (netmask in CIDR notation) of the virtual IP address.
 keepalived_vip_cidr: 24
+# Label suffix for the VIP; the address is labeled `<interface>:<label>`.
 keepalived_label: vip
+# Full `virtual_ipaddress` entry written to keepalived.conf. Built from the
+# variables above; override only if you need a custom definition.
 keepalived_vip_definition: |-
   {{ keepalived_vip }}/{{ keepalived_vip_cidr }} dev {{ keepalived_interface }} label {{ keepalived_interface }}:{{ keepalived_label }}
 
+# Name of the virtual cluster; used to derive the virtual router id.
 keepalived_virtual_cluster_name: "keepalived"
+# VRRP virtual_router_id (0-255). Must be identical on all nodes of a cluster and
+# unique per network segment. Defaults to a hash of the cluster name modulo 256.
 keepalived_virtual_router_id: "{{ keepalived_virtual_cluster_name | hashnum(256) }}"
 
-# config values
+# --- Kernel (sysctl) tuning ---
+# The values below are applied through `keepalived_sysctl_config`.
+
+# net.core.rmem_max: maximum socket receive buffer size (bytes).
 keepalived_net_core_rmem_max: "16777216"
+# net.ipv4.tcp_rmem: min, default and max TCP receive buffer size (bytes).
 keepalived_net_ipv4_tcp_rmem: "4096 87380 16777216"
+# net.core.wmem_max: maximum socket send buffer size (bytes).
 keepalived_net_core_wmem_max: "16777216"
+# net.ipv4.tcp_wmem: min, default and max TCP send buffer size (bytes).
 keepalived_net_ipv4_tcp_wmem: "4096 16384 16777216"
+# net.ipv4.tcp_fin_timeout: seconds to keep sockets in FIN-WAIT-2 state.
 keepalived_net_ipv4_tcp_fin_timeout: "20"
+# net.ipv4.tcp_tw_reuse: allow reuse of TIME-WAIT sockets for new connections.
 keepalived_net_ipv4_tcp_tw_reuse: "1"
+# net.core.netdev_max_backlog: max packets queued on the input side.
 keepalived_net_core_netdev_max_backlog: "10000"
+# net.ipv4.ip_local_port_range: range of local ports used for outgoing connections.
 keepalived_net_ipv4_ip_local_port_range: "15000 65001"
+# net.ipv4.ip_nonlocal_bind: allow services to bind to the VIP while it is not
+# configured on this node.
 keepalived_net_ipv4_ip_nonlocal_bind: "1"
+# net.ipv4.ip_forward: enable IPv4 packet forwarding.
 keepalived_net_ipv4_ip_forward: "1"
+# net.ipv4.conf.all.forwarding: enable forwarding on all interfaces.
 keepalived_net_ipv4_conf_all_forwarding: "1"
 
+# List of sysctl settings (`key`/`value` pairs) applied and persisted on the
+# target. Override to add, remove or change kernel parameters.
 keepalived_sysctl_config:
   - key: "net.core.rmem_max"
     value: "{{ keepalived_net_core_rmem_max }}"
@@ -53,39 +91,45 @@ keepalived_sysctl_config:
   - key: "net.ipv4.conf.all.forwarding"
     value: "{{ keepalived_net_ipv4_conf_all_forwarding }}"
 
-# By default, there is not configuration, because there is no "sane default" to
-# set. You'll have to set it yourself. Here are a few hints.
+# --- VRRP instances (validated only) ---
 #
-# Have a look in `molecule/default/converge.yml` for an example.
+# List of VRRP instance definitions. The role validates this list (see
+# `tasks/assert.yml`), but the current `keepalived.conf.j2` template does not
+# render it; the generated config uses the `keepalived_vip*` /
+# `keepalived_interface` variables above instead.
+#
 # You do not need to set the state to `MASTER`, all nodes can also be set to
 # `BACKUP`, in which case a random host will be selected to configure the
 # virtual IP. Setting `state` to `MASTER` only initially sets that host to be
 # the master. Over time, other nodes will likely become master.
 #
-# You can see the configure virtual IP using `ip addr list eth0`.
-
+# You can see the configured virtual IP using `ip addr list eth0`.
+#
 # keepalived_vrrp_instances:
-#   # `name` defines an individual instance of the VRRP protocol running on an interface.
+#   # `name` (required) defines an individual instance of the VRRP protocol running on an interface.
 #   - name: VI_1
-#   # `state` defines the initial state that the instance should start in.
+#   # `state` (required) initial state: `MASTER` or `BACKUP`.
 #     state: MASTER
-#   # `interface` defines the interface that VRRP runs on.
+#   # `interface` (required) defines the interface that VRRP runs on.
 #     interface: ens192
-#   # `unicast_src_ip` contains the primary address for unicasts.
+#   # `unicast_src_ip` (optional) contains the primary address for unicasts.
 #     unicast_src_ip: "192.168.1.1"
-#   # `secondary_private_ip` refers the the peer's unicast address.
+#   # `secondary_private_ip` (required with unicast_src_ip) is the peer's unicast address.
 #     secondary_private_ip: "192.168.1.2"
-#   # `virtual_router_id` is the unique identifier.
+#   # `virtual_router_id` (required) is the unique identifier (0-255).
 #     virtual_router_id: 51
-#   # `priority` is the advertised priority.
+#   # `priority` (required) is the advertised priority (1-255).
 #     priority: 255
-#   # `check_status_command` will make +3 to priority if command return is 0 (optional). example:
+#   # `check_status_command` (optional) adds +3 to priority if the command returns 0.
+#   # When set, `priority` must be <= 252.
 #     check_status_command: /sbin/postfix status
-#   # `authentication` specifies the information necessary for servers participating in VRRP to authenticate with each other.
+#   # `authentication` (required) information for VRRP peers to authenticate each other.
+#   # `auth_type` is one of `AH`, `PASS`, `PASS|AH`; `auth_pass` is 1-20 characters.
 #     authentication:
 #       auth_type: PASS
 #       auth_pass: 12345
-#   # `virtual_ipaddress` defines the IP addresses (there can be multiple) that VRRP is responsible for.
+#   # `virtual_ipaddresses` (required) defines the IP addresses (there can be multiple)
+#   # that VRRP is responsible for; `cidr` must be 0-32.
 #     virtual_ipaddresses:
 #       - name: "192.168.122.200"
 #         cidr: 24
