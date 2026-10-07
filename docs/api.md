@@ -19,14 +19,14 @@ VRRP instance named `balancer`.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `keepalived_cluster_password` | first 8 chars of `md5(keepalived_vip_definition)` | Password used by VRRP peers to authenticate each other (`auth_type PASS`). All nodes sharing the same VIP derive the same password automatically. |
+| `keepalived_cluster_password` | first 8 chars of `md5(keepalived_vip_definition)` | Password used by VRRP peers to authenticate each other (`auth_type PASS`). Nodes derive the same password only when the full VIP definition (including interface, CIDR and label) is identical; otherwise set a shared password explicitly. |
 | `keepalived_interface` | `eth0` | Network interface VRRP runs on and on which the VIP is configured. |
 | `keepalived_vip` | `192.168.0.100` | The virtual IP address managed by keepalived. |
 | `keepalived_vip_cidr` | `24` | Prefix length (CIDR) of the virtual IP address. |
 | `keepalived_label` | `vip` | Label suffix for the VIP; the address is labeled `<interface>:<label>`. |
 | `keepalived_vip_definition` | `{{ keepalived_vip }}/{{ keepalived_vip_cidr }} dev {{ keepalived_interface }} label {{ keepalived_interface }}:{{ keepalived_label }}` | Full `virtual_ipaddress` entry written to keepalived.conf. Override only if you need a custom definition. |
 | `keepalived_virtual_cluster_name` | `keepalived` | Name of the virtual cluster; used to derive the virtual router id. |
-| `keepalived_virtual_router_id` | `{{ keepalived_virtual_cluster_name \| hashnum(256) }}` | VRRP `virtual_router_id` (0-255). Must be identical on all nodes of a cluster and unique per network segment. |
+| `keepalived_virtual_router_id` | `{{ keepalived_virtual_cluster_name \| hashnum(256) }}` | VRRP `virtual_router_id` (1-255). Must be identical on all nodes of a cluster and unique per network segment. The default hash can produce `0`; override it if this occurs. |
 
 Notes on the generated config:
 
@@ -78,18 +78,22 @@ List of VRRP instance definitions. The role validates this list (see
 `keepalived.conf.j2` template does **not** render it; the generated config uses
 the `keepalived_vip*` / `keepalived_interface` variables instead.
 
+The descriptions below express intended behavior; these settings have no effect
+on the generated config. The unicast and command assertions currently reference
+`item` instead of `instance`, so their requirements are not reliably enforced.
+
 | Key | Required | Description |
 |-----|----------|-------------|
 | `name` | yes | Name of the VRRP instance (string). |
 | `state` | yes | Initial state: `MASTER` or `BACKUP`. |
 | `interface` | yes | Interface VRRP runs on. |
-| `virtual_router_id` | yes | Unique identifier, `0`-`255`. |
+| `virtual_router_id` | yes | Unique identifier, `1`-`255` for Keepalived; validation currently also accepts `0`. |
 | `priority` | yes | Advertised priority, `1`-`255` (max `252` when `check_status_command` is set). |
 | `unicast_src_ip` | no | Primary address used for unicast. |
 | `secondary_private_ip` | with `unicast_src_ip` | The peer's unicast address. |
 | `check_status_command` | no | Command that adds `+3` to the priority if it returns `0`. |
-| `authentication.auth_type` | yes | One of `AH`, `PASS`, `PASS\|AH`. |
-| `authentication.auth_pass` | yes | Password, 1-20 characters. |
+| `authentication.auth_type` | yes | `AH` or `PASS`. |
+| `authentication.auth_pass` | yes | Validation accepts 1-20 characters; Keepalived uses only the first 8. |
 | `virtual_ipaddresses` | yes | List of `{name, cidr}` entries; `cidr` must be `0`-`32`. |
 
 You do not need to set the state to `MASTER`; all nodes can be `BACKUP`, in
