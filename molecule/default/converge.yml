@@ -1,0 +1,19 @@
+---
+# keepalived needs nothing else, so there is no prepare.
+- name: Converge
+  hosts: all
+  vars:
+    # .200 in the scenario's own podman network (a /24)
+    keepalived_vip: "{{ ansible_facts.default_ipv4.network | regex_replace('[0-9]+$', '200') }}"
+    keepalived_vip_cidr: "{{ ansible_facts.default_ipv4.prefix }}"
+    # Only the sysctls that are per network namespace, so the test does not
+    # change the kernel settings of the host that runs the containers
+    keepalived_sysctl_config:
+      - key: net.ipv4.ip_nonlocal_bind
+        value: "1"
+      - key: net.ipv4.ip_forward
+        value: "1"
+      - key: net.ipv4.tcp_fin_timeout
+        value: "20"
+  roles:
+    - role: pgvillage.keepalived
