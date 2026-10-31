@@ -38,6 +38,12 @@ keepalived_virtual_cluster_name: "keepalived"
 # unique per network segment. Defaults to a hash of the cluster name modulo 256.
 keepalived_virtual_router_id: "{{ keepalived_virtual_cluster_name | hashnum(256) }}"
 
+# --- Firewall ---
+# Allow VRRP (IP protocol 112) in firewalld, so the keepalived peers see each other. Without it, every peer becomes
+# master and takes the VIP. `auto`: when firewalld is running; `true`: always (firewalld must be installed); `false`: never.
+keepalived_firewall_vrrp: auto
+# firewalld zone to allow VRRP in (empty: the default zone).
+keepalived_firewall_zone: ""
 # --- Kernel (sysctl) tuning ---
 # The values below are applied through `keepalived_sysctl_config`.
 

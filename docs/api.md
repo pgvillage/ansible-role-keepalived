@@ -35,6 +35,16 @@ Notes on the generated config:
 - A `check_haproxy` track script (`killall -0 haproxy`, weight `2`) is always
   configured.
 
+## Firewall
+
+keepalived uses VRRP (IP protocol 112), not a TCP or UDP port. When a firewall blocks it, the peers don't see each
+other, so every peer becomes master and takes the VIP. The role allows VRRP in firewalld.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `keepalived_firewall_vrrp` | `auto` | Allow VRRP in firewalld (permanent and immediate). `auto`: when firewalld is running; `true`: always (firewalld must be installed); `false`: never, e.g. when another firewall is used. |
+| `keepalived_firewall_zone` | `""` | firewalld zone to allow VRRP in. Empty: the default zone. |
+
 ## Kernel (sysctl) tuning
 
 The individual values below are combined in `keepalived_sysctl_config`, which

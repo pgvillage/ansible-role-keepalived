@@ -1,0 +1,16 @@
+---
+# firewalld blocks VRRP by default. With firewalld running, the VIP checks in
+# verify.yml only pass when the role allows VRRP (keepalived_firewall_vrrp: auto).
+- name: Prepare
+  hosts: all
+  tasks:
+    - name: Install firewalld
+      ansible.builtin.dnf:
+        name: firewalld
+        state: present
+
+    - name: Start firewalld
+      ansible.builtin.systemd:
+        name: firewalld
+        state: started
+        enabled: true
