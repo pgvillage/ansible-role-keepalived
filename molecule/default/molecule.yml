@@ -1,0 +1,42 @@
+---
+# Tests the role on Rocky Linux 9 and 10 in systemd containers, with keepalived
+# from the distribution. The two containers form one VRRP cluster on their own
+# network: keepalived-el10 starts as master (its fqdn has a "1" in it), and
+# keepalived-el9 as backup.
+dependency:
+  name: galaxy
+  options:
+    requirements-file: ${MOLECULE_SCENARIO_DIRECTORY}/requirements.yml
+driver:
+  name: podman
+platforms:
+  # Privileged, so keepalived can add the VIP and the role can set the
+  # (network namespace) sysctls
+  - name: keepalived-el9
+    image: docker.io/geerlingguy/docker-rockylinux9-ansible:latest
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    privileged: true
+    network: molecule-keepalived
+  - name: keepalived-el10
+    image: docker.io/geerlingguy/docker-rockylinux10-ansible:latest
+    pre_build_image: true
+    command: /usr/sbin/init
+    systemd: always
+    privileged: true
+    network: molecule-keepalived
+provisioner:
+  name: ansible
+verifier:
+  name: ansible
+scenario:
+  test_sequence:
+    - dependency
+    - destroy
+    - syntax
+    - create
+    - converge
+    - idempotence
+    - verify
+    - destroy

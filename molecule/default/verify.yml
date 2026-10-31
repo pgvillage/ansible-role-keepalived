@@ -1,0 +1,86 @@
+---
+- name: Verify the cluster
+  hosts: all
+  vars:
+    vip: "{{ ansible_facts.default_ipv4.network | regex_replace('[0-9]+$', '200') }}"
+    master: keepalived-el10
+    backup: keepalived-el9
+  tasks:
+    - name: Read the service states
+      ansible.builtin.service_facts:
+
+    - name: Check that keepalived runs and is enabled
+      ansible.builtin.assert:
+        that:
+          - ansible_facts.services['keepalived.service'].state == 'running'
+          - ansible_facts.services['keepalived.service'].status == 'enabled'
+
+    - name: Read the sysctls set by the role
+      ansible.builtin.slurp:
+        src: /proc/sys/net/ipv4/ip_nonlocal_bind
+      register: nonlocal_bind
+
+    - name: Check that net.ipv4.ip_nonlocal_bind is set
+      ansible.builtin.assert:
+        that: nonlocal_bind.content | b64decode | trim == '1'
+
+    - name: Check that both nodes have the same virtual router id and password
+      ansible.builtin.shell: |
+        set -o pipefail
+        grep -E 'virtual_router_id|auth_pass' /etc/keepalived/keepalived.conf | sort | sha256sum
+      args:
+        executable: /bin/bash
+      register: vrrp_settings
+      changed_when: false
+
+    - name: Compare the virtual router ids and passwords
+      ansible.builtin.assert:
+        that: vrrp_settings.stdout == hostvars[master].vrrp_settings.stdout
+      when: inventory_hostname == backup
+
+    - name: Wait until the master has the VIP
+      ansible.builtin.command: ip -4 -o addr show dev eth0
+      register: addresses
+      until: (vip ~ '/' ~ ansible_facts.default_ipv4.prefix) in addresses.stdout
+      retries: 15
+      delay: 2
+      changed_when: false
+      when: inventory_hostname == master
+
+    - name: Check that the backup does not have the VIP
+      ansible.builtin.command: ip -4 -o addr show dev eth0
+      register: addresses
+      changed_when: false
+      failed_when: (vip ~ '/' ~ ansible_facts.default_ipv4.prefix) in addresses.stdout
+      when: inventory_hostname == backup
+
+    # Fail over: stop keepalived on the master, and the backup takes the VIP
+    - name: Stop keepalived on the master
+      ansible.builtin.systemd:
+        name: keepalived
+        state: stopped
+      when: inventory_hostname == master
+
+    - name: Wait until the backup has taken over the VIP
+      ansible.builtin.command: ip -4 -o addr show dev eth0
+      register: addresses
+      until: (vip ~ '/' ~ ansible_facts.default_ipv4.prefix) in addresses.stdout
+      retries: 15
+      delay: 2
+      changed_when: false
+      when: inventory_hostname == backup
+
+    - name: Start keepalived on the master again
+      ansible.builtin.systemd:
+        name: keepalived
+        state: started
+      when: inventory_hostname == master
+
+    - name: Wait until the master has taken the VIP back (it has the higher priority)
+      ansible.builtin.command: ip -4 -o addr show dev eth0
+      register: addresses
+      until: (vip ~ '/' ~ ansible_facts.default_ipv4.prefix) in addresses.stdout
+      retries: 15
+      delay: 2
+      changed_when: false
+      when: inventory_hostname == master
