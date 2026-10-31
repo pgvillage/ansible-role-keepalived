@@ -38,6 +38,16 @@
         that: vrrp_settings.stdout == hostvars[master].vrrp_settings.stdout
       when: inventory_hostname == backup
 
+    - name: Read the protocols allowed by firewalld (runtime and permanent)
+      ansible.builtin.shell: firewall-cmd --list-protocols && firewall-cmd --permanent --list-protocols
+      register: firewalld_protocols
+      changed_when: false
+
+    - name: Check that VRRP is allowed in firewalld
+      ansible.builtin.assert:
+        that: firewalld_protocols.stdout_lines | select('search', 'vrrp') | list | length == 2
+        fail_msg: "{{ firewalld_protocols.stdout_lines }}"
+
     - name: Wait until the master has the VIP
       ansible.builtin.command: ip -4 -o addr show dev eth0
       register: addresses

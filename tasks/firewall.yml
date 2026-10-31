@@ -1,0 +1,19 @@
+---
+- name: Check whether firewalld is running
+  ansible.builtin.systemd_service:
+    name: firewalld
+  register: keepalived_firewalld_service
+  failed_when: false
+  when: keepalived_firewall_vrrp | string | lower == 'auto'
+
+- name: Allow VRRP in firewalld
+  ansible.posix.firewalld:
+    protocol: vrrp
+    zone: "{{ keepalived_firewall_zone | default(omit, true) }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: >-
+    keepalived_firewall_vrrp | string | lower == 'auto'
+    and (keepalived_firewalld_service.status | default({})).ActiveState | default('') == 'active'
+    or keepalived_firewall_vrrp | string | lower not in ['auto', 'false']

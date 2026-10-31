@@ -9,5 +9,8 @@
 - name: Install keepalived
   ansible.builtin.import_tasks: "install.yml"
 
+- name: Allow VRRP in firewalld
+  ansible.builtin.import_tasks: "firewall.yml"
+
 - name: Config keepalived
   ansible.builtin.import_tasks: "config.yml"
