@@ -38,6 +38,11 @@ keepalived_virtual_cluster_name: "keepalived"
 # unique per network segment. Defaults to a hash of the cluster name modulo 256.
 keepalived_virtual_router_id: "{{ keepalived_virtual_cluster_name | hashnum(256) }}"
 
+# Addresses of all nodes of the cluster, to send VRRP to as unicast instead of
+# multicast (for networks that don't pass multicast). The addresses of the host
+# itself are left out. Empty: multicast.
+keepalived_unicast_peers: []
+
 # --- Firewall ---
 # Allow VRRP (IP protocol 112) in firewalld, so the keepalived peers see each other. Without it, every peer becomes
 # master and takes the VIP. `auto`: when firewalld is running; `true`: always (firewalld must be installed); `false`: never.
