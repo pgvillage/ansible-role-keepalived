@@ -23,7 +23,7 @@ BACKUP
 {% else %}
 50
 {% endif %}
-{% set unicast_peers = keepalived_unicast_peers | difference(ansible_facts.all_ipv4_addresses) %}
+{% set unicast_peers = keepalived_unicast_peers | reject('in', ansible_facts.all_ipv4_addresses) | list %}
 {% if unicast_peers %}
   unicast_peer {
 {% for peer in unicast_peers %}

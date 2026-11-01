@@ -48,8 +48,7 @@
       ansible.builtin.assert:
         that: >-
           (keepalived_conf.content | b64decode | regex_findall('unicast_peer {\\s*([0-9.]+)\\s*}'))
-          == ((keepalived_unicast_peers | default([]))
-              | difference([ansible_facts.default_ipv4.address]))
+          == (keepalived_unicast_peers | default([]) | reject('eq', ansible_facts.default_ipv4.address) | list)
         fail_msg: "{{ keepalived_conf.content | b64decode }}"
 
     - name: Read the protocols allowed by firewalld (runtime and permanent)
