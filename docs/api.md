@@ -12,6 +12,19 @@ This document describes all variables that can be used to configure the
 | `keepalived_local_packages` | `[]` | List of local package files that are copied to `/tmp/` on the target and installed from there. |
 | `keepalived_packages` | `[keepalived]` | List of packages to install from the configured package repositories. |
 
+## Restarts
+
+The role restarts keepalived when its package (`keepalived_packages` or `keepalived_local_packages`) is installed or
+upgraded, or when the systemd unit or `keepalived.conf` changes. Restarts are rolling: one host at a time. After a
+restart the role waits until keepalived is active again, and then `keepalived_restart_delay` seconds, so VRRP can
+settle (a restarted master takes the VIP back) before keepalived restarts on the next host: the VIP moves at most once
+at a time. On Ubuntu, exclude `keepalived.service` from needrestart, so it does not restart keepalived on all hosts at
+once after an upgrade.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `keepalived_restart_delay` | `10` | Seconds to wait after keepalived is active again on a host, before restarting it on the next host. `0`: don't wait. |
+
 ## Virtual IP / VRRP instance
 
 These variables are rendered into `/etc/keepalived/keepalived.conf` as a single

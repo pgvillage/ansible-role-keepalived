@@ -1,6 +1,8 @@
 ---
 # tasks file for keepalived-haproxy
 
+# On an upgrade, restart keepalived (rolling, see handlers/main.yml): needrestart
+# leaves keepalived.service alone, so it does not restart it on all hosts at once
 - name: Copy keepalived rpm files to server
   ansible.builtin.copy:
     src: "{{ item }}"
@@ -9,15 +11,18 @@
     group: "root"
     mode: "0640"
   loop: "{{ keepalived_local_packages }}"
+  notify: Restart keepalived
 
 - name: Install keepalived rpm files
   ansible.builtin.package:
     name: "/tmp/{{ item }}"
     state: "{{ keepalived_package_state }}"
   loop: "{{ keepalived_local_packages }}"
+  notify: Restart keepalived
 
 - name: Install keepalived rpm files
   ansible.builtin.package:
     name: "{{ item }}"
     state: "{{ keepalived_package_state }}"
   loop: "{{ keepalived_packages }}"
+  notify: Restart keepalived
