@@ -2,7 +2,8 @@
 # Included from the "Restart keepalived" handler once per host, with:
 #   keepalived_restart_host: host to restart keepalived on (delegate_to)
 # The handler runs once for all hosts, so the variables of the restarted host
-# are read from hostvars.
+# are read from hostvars (inventory and facts), falling back to the role defaults
+# (which are not in hostvars).
 
 - name: "Restart keepalived on {{ keepalived_restart_host }}"
   ansible.builtin.systemd_service:
@@ -24,8 +25,8 @@
 # master to take the VIP back), so the VIP moves at most once at a time
 - name: "Wait for VRRP to settle on {{ keepalived_restart_host }}"
   ansible.builtin.pause:
-    seconds: "{{ hostvars[keepalived_restart_host].keepalived_restart_delay }}"
-  when: hostvars[keepalived_restart_host].keepalived_restart_delay | int > 0
+    seconds: "{{ hostvars[keepalived_restart_host].keepalived_restart_delay | default(keepalived_restart_delay) }}"
+  when: (hostvars[keepalived_restart_host].keepalived_restart_delay | default(keepalived_restart_delay)) | int > 0
 
 - name: "Mark keepalived as restarted on {{ keepalived_restart_host }}"
   ansible.builtin.set_fact:
