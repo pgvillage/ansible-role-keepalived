@@ -38,6 +38,19 @@
         that: vrrp_settings.stdout == hostvars[master].vrrp_settings.stdout
       when: inventory_hostname == backup
 
+    - name: Read the keepalived config
+      ansible.builtin.slurp:
+        src: /etc/keepalived/keepalived.conf
+      register: keepalived_conf
+
+    # The unicast scenario sets keepalived_unicast_peers: only the other node is a peer
+    - name: Check the unicast peers
+      ansible.builtin.assert:
+        that: >-
+          (keepalived_conf.content | b64decode | regex_findall('unicast_peer {\\s*([0-9.]+)\\s*}'))
+          == (keepalived_unicast_peers | default([]) | reject('eq', ansible_facts.default_ipv4.address) | list)
+        fail_msg: "{{ keepalived_conf.content | b64decode }}"
+
     - name: Read the protocols allowed by firewalld (runtime and permanent)
       ansible.builtin.shell: firewall-cmd --list-protocols && firewall-cmd --permanent --list-protocols
       register: firewalld_protocols

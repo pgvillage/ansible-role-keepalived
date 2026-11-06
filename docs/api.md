@@ -26,6 +26,7 @@ VRRP instance named `balancer`.
 | `keepalived_label` | `vip` | Label suffix for the VIP; the address is labeled `<interface>:<label>`. |
 | `keepalived_vip_definition` | `{{ keepalived_vip }}/{{ keepalived_vip_cidr }} dev {{ keepalived_interface }} label {{ keepalived_interface }}:{{ keepalived_label }}` | Full `virtual_ipaddress` entry written to keepalived.conf. Override only if you need a custom definition. |
 | `keepalived_virtual_cluster_name` | `keepalived` | Name of the virtual cluster; used to derive the virtual router id. |
+| `keepalived_unicast_peers` | `[]` | Addresses of all nodes of the cluster. When set, VRRP is sent as unicast to these peers instead of multicast, for networks that don't pass multicast (e.g. some VM networks). The addresses of the host itself are left out, so all nodes can use the same list. |
 | `keepalived_virtual_router_id` | `{{ keepalived_virtual_cluster_name \| hashnum(256) }}` | VRRP `virtual_router_id` (1-255). Must be identical on all nodes of a cluster and unique per network segment. The default hash can produce `0`; override it if this occurs. |
 
 Notes on the generated config:
