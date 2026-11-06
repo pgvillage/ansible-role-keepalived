@@ -1,9 +1,26 @@
 ---
 # handlers file for keepalived
 
+# Restarts are rolling: one host at a time, so the VIP moves at most once at a
+# time. After a restart the role waits until keepalived is active, and then
+# keepalived_restart_delay seconds (for VRRP to settle) before going on to the
+# next host. A handler runs on all notified hosts at once, so the notified hosts
+# first mark themselves, and then one run (run_once) restarts the marked hosts
+# in turn (delegate_to), see tasks/restart_host.yml.
 - name: Restart keepalived
-  ansible.builtin.service:
-    name: keepalived
-    state: restarted
+  ansible.builtin.set_fact:
+    _keepalived_restart_needed: true
+
+- name: Restart keepalived on one host at a time
+  ansible.builtin.include_tasks: restart_host.yml
+  run_once: true
+  loop: "{{ ansible_play_batch | select('in', _keepalived_restart_hosts) | list }}"
+  loop_control:
+    loop_var: keepalived_restart_host
+  vars:
+    _keepalived_restart_hosts: >-
+      {{ hostvars | dict2items | selectattr('value._keepalived_restart_needed', 'defined')
+         | selectattr('value._keepalived_restart_needed') | map(attribute='key') | list }}
   when:
     - not ansible_check_mode | bool
+  listen: Restart keepalived

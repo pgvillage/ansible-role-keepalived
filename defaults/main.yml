@@ -13,6 +13,14 @@ keepalived_local_packages: []
 keepalived_packages:
   - keepalived
 
+# --- Restarts ---
+
+# Seconds to wait after keepalived is active again on a host, before restarting
+# keepalived on the next host, so VRRP can settle and the VIP moves at most once
+# at a time. keepalived is restarted (one host at a time) when its package, unit
+# or config changes.
+keepalived_restart_delay: 10
+
 # --- Virtual IP / VRRP instance ---
 
 # Password used by VRRP peers to authenticate each other (auth_type PASS).
