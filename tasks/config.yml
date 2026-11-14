@@ -32,3 +32,27 @@
     name: keepalived
     state: started
     enabled: "true"
+
+# The package is usually upgraded outside this role (e.g. by the linux role with
+# linux_package_state: latest, unattended-upgrades or apt), and needrestart skips
+# keepalived. keepalived then still runs the old binary: restart it (one host at
+# a time, see handlers/main.yml) when the binary (as in ExecStart of
+# templates/keepalived.service.j2) was replaced (its ctime) after keepalived
+# started. Both are in whole seconds, and the start time is read in UTC, so
+# `date` can parse it. (Reading /proc/<pid>/exe would need CAP_SYS_PTRACE,
+# which containers lack.)
+- name: Check if keepalived started before its binary was replaced
+  ansible.builtin.shell: |
+    set -e
+    if [ "$(systemctl show --property MainPID --value keepalived)" -gt 0 ]; then
+      started=$(TZ=UTC systemctl show --property ExecMainStartTimestamp --value keepalived)
+      if [ -n "$started" ] && [ "$started" != n/a ]; then
+        replaced_at=$(stat -c %Z /usr/sbin/keepalived)
+        if [ "$replaced_at" -gt "$(date -d "$started" +%s)" ]; then echo replaced; fi
+      fi
+    fi
+  register: keepalived_binary_check
+  check_mode: false
+  changed_when: keepalived_binary_check.stdout | default('') == 'replaced'
+  notify:
+    - Restart keepalived

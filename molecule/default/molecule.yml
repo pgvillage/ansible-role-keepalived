@@ -3,6 +3,8 @@
 # from the distribution. The two containers form one VRRP cluster on their own
 # network: keepalived-el10 starts as master (its fqdn has a "1" in it), and
 # keepalived-el9 as backup.
+# verify.yml also replaces the keepalived binary (as an upgrade does), and
+# checks that the role restarts keepalived then.
 dependency:
   name: galaxy
   options:
