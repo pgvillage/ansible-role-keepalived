@@ -14,12 +14,20 @@ This document describes all variables that can be used to configure the
 
 ## Restarts
 
-The role restarts keepalived when its package (`keepalived_packages` or `keepalived_local_packages`) is installed or
-upgraded, or when the systemd unit or `keepalived.conf` changes. Restarts are rolling: one host at a time. After a
+The role restarts keepalived when:
+
+- the role installs or upgrades its package (`keepalived_packages` or `keepalived_local_packages`),
+- the keepalived binary (`/usr/sbin/keepalived`) was replaced after keepalived started, so keepalived still runs the
+  old binary, e.g. when the package was upgraded by the linux role (`linux_package_state: latest`),
+  unattended-upgrades or apt, or
+- the systemd unit or `keepalived.conf` changes.
+
+Restarts are rolling: one host at a time. After a
 restart the role waits until keepalived is active again, and then `keepalived_restart_delay` seconds, so VRRP can
 settle (a restarted master takes the VIP back) before keepalived restarts on the next host: the VIP moves at most once
 at a time. On Ubuntu, exclude `keepalived.service` from needrestart, so it does not restart keepalived on all hosts at
-once after an upgrade.
+once after an upgrade (the pgvillage linux role does), and run the role after patching the OS, so keepalived runs the
+new binary.
 
 | Variable | Default | Description |
 |----------|---------|-------------|

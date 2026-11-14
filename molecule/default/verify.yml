@@ -107,3 +107,82 @@
       delay: 2
       changed_when: false
       when: inventory_hostname == master
+
+# Simulate a package upgrade outside the role (e.g. by the linux role or
+# unattended-upgrades): replace the keepalived binary (new ctime) after
+# keepalived started. Running the role again must then restart keepalived (one
+# host at a time), and only then: the role first runs once without the
+# replace, and must not restart keepalived.
+- name: Verify the restart after an upgraded binary
+  hosts: all
+  vars:
+    vip: "{{ ansible_facts.default_ipv4.network | regex_replace('[0-9]+$', '200') }}"
+    master: keepalived-el10
+    # As in converge.yml, so only the binary triggers a restart
+    keepalived_vip: "{{ vip }}"
+    keepalived_vip_cidr: "{{ ansible_facts.default_ipv4.prefix }}"
+    keepalived_sysctl_config:
+      - key: net.ipv4.ip_nonlocal_bind
+        value: "1"
+      - key: net.ipv4.ip_forward
+        value: "1"
+      - key: net.ipv4.tcp_fin_timeout
+        value: "20"
+  tasks:
+    - name: Read the keepalived main pid before the upgrade
+      ansible.builtin.systemd_service:
+        name: keepalived
+      register: pid_before
+
+    - name: Run the role without an upgrade
+      ansible.builtin.include_role:
+        name: pgvillage.keepalived
+
+    - name: Run the handlers
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read the keepalived main pid after the run without an upgrade
+      ansible.builtin.systemd_service:
+        name: keepalived
+      register: pid_unchanged
+
+    - name: Check that keepalived was not restarted
+      ansible.builtin.assert:
+        that: pid_unchanged.status.MainPID == pid_before.status.MainPID
+
+    - name: Wait, as the start time and ctime are compared in whole seconds
+      ansible.builtin.pause:
+        seconds: 2
+
+    - name: Replace the keepalived binary, as a package upgrade does
+      ansible.builtin.shell: cp -p /usr/sbin/keepalived /usr/sbin/keepalived.new && mv /usr/sbin/keepalived.new /usr/sbin/keepalived
+      changed_when: true
+
+    - name: Run the role again
+      ansible.builtin.include_role:
+        name: pgvillage.keepalived
+
+    - name: Run the handlers after the upgrade
+      ansible.builtin.meta: flush_handlers
+
+    - name: Read the keepalived main pid after the upgrade
+      ansible.builtin.systemd_service:
+        name: keepalived
+      register: pid_after
+
+    - name: Check that keepalived was restarted
+      ansible.builtin.assert:
+        that:
+          - pid_after.status.ActiveState == 'active'
+          - pid_after.status.MainPID | int > 0
+          - pid_after.status.MainPID != pid_before.status.MainPID
+        fail_msg: "PID before: {{ pid_before.status.MainPID }}, after: {{ pid_after.status.MainPID }}"
+
+    - name: Wait until the master has the VIP again
+      ansible.builtin.command: ip -4 -o addr show dev eth0
+      register: addresses
+      until: (vip ~ '/' ~ ansible_facts.default_ipv4.prefix) in addresses.stdout
+      retries: 15
+      delay: 2
+      changed_when: false
+      when: inventory_hostname == master

@@ -18,7 +18,8 @@ keepalived_packages:
 # Seconds to wait after keepalived is active again on a host, before restarting
 # keepalived on the next host, so VRRP can settle and the VIP moves at most once
 # at a time. keepalived is restarted (one host at a time) when its package, unit
-# or config changes.
+# or config changes, or when its binary was replaced after keepalived started
+# (an upgrade outside the role, e.g. by the linux role or unattended-upgrades).
 keepalived_restart_delay: 10
 
 # --- Virtual IP / VRRP instance ---
